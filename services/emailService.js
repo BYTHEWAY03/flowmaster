@@ -1,26 +1,11 @@
+const https = require('https');
 const nodemailer = require('nodemailer');
 
-function createTransporter() {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return null;
-    if (process.env.EMAIL_HOST) {
-        return nodemailer.createTransport({
-            host: process.env.EMAIL_HOST,
-            port: parseInt(process.env.EMAIL_PORT) || 587,
-            secure: false,
-            auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-        });
-    }
-    return nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-    });
-}
-
 async function sendOTP(email, otp, purpose) {
-    const isLogin   = purpose === 'login';
-    const subject   = isLogin ? 'Your FlowMaster Login Code' : 'Verify Your FlowMaster Account';
-    const heading   = isLogin ? 'Login Verification' : 'Email Verification';
-    const body      = isLogin
+    const isLogin = purpose === 'login';
+    const subject = isLogin ? 'Your FlowMaster Login Code' : 'Verify Your FlowMaster Account';
+    const heading = isLogin ? 'Login Verification' : 'Email Verification';
+    const body    = isLogin
         ? 'Someone (hopefully you) is trying to sign in to FlowMaster. Use the code below to complete login.'
         : 'Welcome! Use the code below to verify your email and activate your account.';
 
@@ -33,20 +18,17 @@ async function sendOTP(email, otp, purpose) {
       <div style="padding:2rem;color:#f1f5f9">
         <h2 style="font-size:1.2rem;margin:0 0 .75rem">${heading}</h2>
         <p style="color:#94a3b8;line-height:1.6;margin:0 0 1.5rem">${body}</p>
-
         <div style="background:#1e1e3a;border:2px solid #7c3aed;border-radius:12px;padding:1.75rem;text-align:center;margin-bottom:1.5rem">
           <p style="color:#94a3b8;font-size:.8rem;margin:0 0 .5rem;text-transform:uppercase;letter-spacing:.1rem">Your one-time code</p>
           <span style="font-size:3rem;font-weight:800;letter-spacing:.6rem;color:#a855f7;font-family:'Courier New',monospace">${otp}</span>
         </div>
-
         <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:.75rem 1rem;margin-bottom:1.5rem">
           <p style="color:#fca5a5;margin:0;font-size:.85rem">
-            ⏱ This code expires in <strong>5 minutes</strong>. Do not share it with anyone — FlowMaster staff will never ask for it.
+            ⏱ This code expires in <strong>5 minutes</strong>. Do not share it with anyone.
           </p>
         </div>
-
         <p style="color:#64748b;font-size:.78rem;margin:0">
-          If you did not request this code, you can safely ignore this email. Your account remains secure.
+          If you did not request this code, you can safely ignore this email.
         </p>
       </div>
       <div style="background:#0f0f20;padding:1rem;text-align:center">
@@ -54,22 +36,57 @@ async function sendOTP(email, otp, purpose) {
       </div>
     </div>`;
 
-    const transporter = createTransporter();
-    if (!transporter) {
-        // Console fallback — shown in the terminal when no Gmail is configured
-        console.log('\n' + '═'.repeat(52));
-        console.log(`  OTP  →  ${otp}  (sent to: ${email})`);
-        console.log(`  Purpose: ${purpose}  |  Valid for 5 minutes`);
-        console.log('═'.repeat(52) + '\n');
+    // ── Brevo HTTP API (preferred — works on all platforms) ──────
+    if (process.env.BREVO_API_KEY) {
+        const payload = JSON.stringify({
+            sender:      { name: 'FlowMaster Security', email: 'noreply@flowmaster-game.com' },
+            to:          [{ email }],
+            subject,
+            htmlContent: html
+        });
+        await new Promise((resolve, reject) => {
+            const req = https.request({
+                hostname: 'api.brevo.com',
+                path:     '/v3/smtp/email',
+                method:   'POST',
+                headers: {
+                    'Content-Type':  'application/json',
+                    'api-key':       process.env.BREVO_API_KEY,
+                    'Content-Length': Buffer.byteLength(payload)
+                }
+            }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    if (res.statusCode >= 400) reject(new Error(`Brevo API error ${res.statusCode}: ${data}`));
+                    else resolve();
+                });
+            });
+            req.on('error', reject);
+            req.write(payload);
+            req.end();
+        });
         return;
     }
 
-    await transporter.sendMail({
-        from: `"FlowMaster Security" <${process.env.EMAIL_USER}>`,
-        to:   email,
-        subject,
-        html
-    });
+    // ── Gmail fallback ───────────────────────────────────────────
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+        });
+        await transporter.sendMail({
+            from: `"FlowMaster Security" <${process.env.EMAIL_USER}>`,
+            to: email, subject, html
+        });
+        return;
+    }
+
+    // ── Console fallback (no email configured) ───────────────────
+    console.log('\n' + '═'.repeat(52));
+    console.log(`  OTP  →  ${otp}  (sent to: ${email})`);
+    console.log(`  Purpose: ${purpose}  |  Valid for 5 minutes`);
+    console.log('═'.repeat(52) + '\n');
 }
 
 module.exports = { sendOTP };
