@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel — FlowMaster</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-dashboard">
+
+  <nav class="navbar">
+    <a href="/dashboard" class="nav-brand">⚡ FlowMaster</a>
+    <div class="nav-links">
+      <span id="navUser" class="nav-user"></span>
+      <a href="/dashboard" class="btn btn-ghost">Dashboard</a>
+      <button onclick="logout()" class="btn btn-ghost">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h1 class="page-title">Instructor Panel</h1>
+
+    <div id="alert" class="alert hidden"></div>
+
+    <!-- Stats row -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card"><div class="stat-value" id="statStudents">—</div><div class="stat-label">Students</div></div>
+      <div class="stat-card"><div class="stat-value" id="statQuestions">—</div><div class="stat-label">Questions</div></div>
+      <div class="stat-card"><div class="stat-value" id="statSessions">—</div><div class="stat-label">Sessions</div></div>
+      <div class="stat-card"><div class="stat-value" id="statAnswers">—</div><div class="stat-label">Answers</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="openTab('questions')">Questions</button>
+      <button class="tab" onclick="openTab('qr')">QR Codes</button>
+      <button class="tab" onclick="openTab('sessions')">Sessions</button>
+      <button class="tab" onclick="openTab('users')">Users</button>
+    </div>
+
+    <!-- Questions tab -->
+    <div id="tab-questions" class="tab-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem">
+        <h2>Manage Questions</h2>
+        <button class="btn btn-primary" onclick="showAddQuestion()">+ Add Question</button>
+      </div>
+
+      <!-- Add Question Form -->
+      <div id="addQuestionForm" class="admin-form hidden">
+        <h3>Add New Question</h3>
+        <div class="form-grid-2">
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Question Text *</label>
+            <textarea id="qText" rows="3" placeholder="What is the output of…"></textarea>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Code Snippet (optional)</label>
+            <textarea id="qCode" rows="4" placeholder="x = 5&#10;if x > 3:&#10;    print('yes')"></textarea>
+          </div>
+          <div class="form-group"><label>Option A *</label><input id="qA" type="text" /></div>
+          <div class="form-group"><label>Option B *</label><input id="qB" type="text" /></div>
+          <div class="form-group"><label>Option C *</label><input id="qC" type="text" /></div>
+          <div class="form-group"><label>Option D *</label><input id="qD" type="text" /></div>
+          <div class="form-group">
+            <label>Correct Answer *</label>
+            <select id="qCorrect">
+              <option value="A">A</option><option value="B">B</option>
+              <option value="C">C</option><option value="D">D</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Difficulty *</label>
+            <select id="qDiff">
+              <option value="easy">Easy (10 pts)</option>
+              <option value="medium">Medium (20 pts)</option>
+              <option value="hard">Hard (30 pts)</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Category *</label><input id="qCat" type="text" placeholder="e.g. if-else, for-loop" /></div>
+          <div class="form-group"><label>Points</label><input id="qPoints" type="number" value="10" min="1" max="100" /></div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Explanation *</label>
+            <textarea id="qExplain" rows="3" placeholder="Explain why this answer is correct…"></textarea>
+          </div>
+        </div>
+        <div style="display:flex;gap:.5rem;margin-top:1rem">
+          <button class="btn btn-primary" onclick="addQuestion()">Save Question</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('addQuestionForm').classList.add('hidden')">Cancel</button>
+        </div>
+      </div>
+
+      <div id="questionsList" class="data-table-wrap"></div>
+    </div>
+
+    <!-- QR Codes tab -->
+    <div id="tab-qr" class="tab-content hidden">
+      <h2>Generate QR Codes for Physical Cards</h2>
+      <p class="hint-text">Each QR code links to a specific question page. Print these onto cards for the physical board game component.</p>
+      <div style="margin:1rem 0">
+        <label>Question ID: </label>
+        <input type="number" id="qrId" min="1" placeholder="e.g. 5" style="width:120px;margin-left:.5rem" />
+        <button class="btn btn-primary" style="margin-left:.5rem" onclick="generateQR()">Generate QR</button>
+      </div>
+      <div id="qrResult" class="qr-result hidden">
+        <img id="qrImage" alt="QR Code" />
+        <p id="qrUrl" class="hint-text"></p>
+        <p class="hint-text">Right-click the image → Save As to download for printing.</p>
+      </div>
+      <hr class="divider" />
+      <h3>Bulk QR Codes (All Questions)</h3>
+      <button class="btn btn-secondary" onclick="loadAllQRs()">Load All QR Codes</button>
+      <div id="allQRs" class="qr-grid"></div>
+    </div>
+
+    <!-- Sessions tab -->
+    <div id="tab-sessions" class="tab-content hidden">
+      <h2>Game Sessions</h2>
+      <div id="sessionsList" class="data-table-wrap"></div>
+    </div>
+
+    <!-- Users tab -->
+    <div id="tab-users" class="tab-content hidden">
+      <h2>Registered Users</h2>
+      <div id="usersList" class="data-table-wrap"></div>
+    </div>
+
+  </main>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

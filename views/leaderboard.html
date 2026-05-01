@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leaderboard — FlowMaster</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-leaderboard">
+
+  <nav class="navbar">
+    <a href="/dashboard" class="nav-brand">⚡ FlowMaster</a>
+    <a href="/dashboard" class="btn btn-ghost">Back to Dashboard</a>
+  </nav>
+
+  <main class="container lb-main">
+    <div class="lb-header">
+      <div class="trophy-icon">🏆</div>
+      <h1>Game Over!</h1>
+      <p id="sessionInfo" class="lb-session-info"></p>
+    </div>
+
+    <!-- Podium for top 3 -->
+    <div class="podium" id="podium"></div>
+
+    <!-- Full rankings -->
+    <div class="rankings-card">
+      <h2>Full Rankings</h2>
+      <table class="rankings-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Player</th>
+            <th>Score</th>
+            <th>Board Position</th>
+          </tr>
+        </thead>
+        <tbody id="rankingsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="lb-actions">
+      <a href="/dashboard" class="btn btn-primary btn-lg">Play Again</a>
+    </div>
+  </main>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    const code = window.location.pathname.split('/').pop();
+
+    (async () => {
+      await requireAuth();
+
+      const res = await fetch(`/api/game/${code}/leaderboard`);
+      if (!res.ok) { window.location.href = '/dashboard'; return; }
+      const { leaderboard, session } = await res.json();
+
+      document.getElementById('sessionInfo').textContent =
+        `Session: ${code} | Difficulty: ${session.difficulty} | Rounds: ${session.total_rounds}`;
+
+      renderPodium(leaderboard);
+      renderRankings(leaderboard);
+    })();
+
+    function renderPodium(players) {
+      const top3 = players.slice(0, 3);
+      const medals = ['🥇', '🥈', '🥉'];
+      const heights = ['160px', '120px', '100px'];
+      // Reorder for visual podium: 2nd, 1st, 3rd
+      const order = [1, 0, 2].filter(i => top3[i]);
+      const podium = document.getElementById('podium');
+      podium.innerHTML = order.map(i => `
+        <div class="podium-place place-${i + 1}" style="height:${heights[i]}">
+          <div class="podium-medal">${medals[i]}</div>
+          <div class="podium-name">${top3[i].username}</div>
+          <div class="podium-score">${top3[i].score} pts</div>
+          <div class="podium-block">${i + 1}</div>
+        </div>`).join('');
+    }
+
+    function renderRankings(players) {
+      const tbody = document.getElementById('rankingsBody');
+      tbody.innerHTML = players.map((p, i) => `
+        <tr class="${i < 3 ? 'top-rank' : ''}">
+          <td class="rank-num">${i + 1}</td>
+          <td>${p.username}</td>
+          <td class="score-cell">${p.score}</td>
+          <td>${p.position} spaces</td>
+        </tr>`).join('');
+    }
+  </script>
+</body>
+</html>

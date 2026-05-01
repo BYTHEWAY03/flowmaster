@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register — FlowMaster</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-auth">
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <a href="/" class="auth-back">← Back</a>
+      <div class="auth-logo">⚡ FlowMaster</div>
+
+      <div id="alert" class="alert hidden"></div>
+
+      <!-- ── Step 1: Registration form ── -->
+      <div id="stepCredentials">
+        <h1 class="auth-title">Create Account</h1>
+        <p class="auth-sub">Join FlowMaster and start learning</p>
+
+        <form id="registerForm" class="auth-form" novalidate>
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" placeholder="e.g. pythonpro" required minlength="3" autocomplete="username" />
+            <span class="field-error" id="usernameErr"></span>
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="you@example.com" required autocomplete="email" />
+            <span class="field-error" id="emailErr"></span>
+          </div>
+          <div class="form-group">
+            <label for="password">Password <small>(min 6 characters)</small></label>
+            <input type="password" id="password" placeholder="••••••••" required minlength="6" autocomplete="new-password" />
+            <span class="field-error" id="passwordErr"></span>
+          </div>
+          <div class="form-group">
+            <label for="confirm">Confirm Password</label>
+            <input type="password" id="confirm" placeholder="••••••••" required autocomplete="new-password" />
+            <span class="field-error" id="confirmErr"></span>
+          </div>
+          <div class="form-group">
+            <label for="role">I am a…</label>
+            <select id="role">
+              <option value="student">Student</option>
+              <option value="instructor">Instructor</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" id="submitBtn">Create Account</button>
+        </form>
+        <p class="auth-switch">Already have an account? <a href="/login">Sign in</a></p>
+      </div>
+
+      <!-- ── Step 2: OTP Verification ── -->
+      <div id="stepOTP" class="hidden">
+        <div class="otp-header">
+          <div class="otp-icon">📧</div>
+          <h1 class="auth-title">Verify Your Email</h1>
+          <p class="auth-sub">We sent a 6-digit code to<br /><strong id="maskedEmail"></strong></p>
+        </div>
+
+        <div class="security-badge">
+          🔒 Email verification keeps your account secure
+        </div>
+
+        <div class="otp-boxes" id="otpBoxes">
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        </div>
+
+        <div id="otpTimer" class="otp-timer"></div>
+
+        <button class="btn btn-primary btn-full" id="verifyBtn" onclick="verifyOTP()">Verify &amp; Create Account</button>
+
+        <div class="otp-resend">
+          <span class="hint-text">Didn't receive it?</span>
+          <button class="btn btn-ghost btn-sm" id="resendBtn" onclick="resendOTP()">Resend Code</button>
+        </div>
+
+        <button class="btn btn-ghost btn-full" style="margin-top:.5rem" onclick="goBack()">← Back to registration</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    let pendingEmail = '';
+    let timerInterval;
+
+    // ── Registration form ─────────────────────────────────────
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const username = document.getElementById('username').value.trim();
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirm  = document.getElementById('confirm').value;
+      const role     = document.getElementById('role').value;
+
+      let valid = true;
+      if (!username || username.length < 3)          { showFieldError('usernameErr', 'Username must be at least 3 characters'); valid = false; }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFieldError('emailErr', 'Enter a valid email address'); valid = false; }
+      if (!password || password.length < 6)          { showFieldError('passwordErr', 'Password must be at least 6 characters'); valid = false; }
+      if (password !== confirm)                      { showFieldError('confirmErr', 'Passwords do not match'); valid = false; }
+      if (!valid) return;
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true; btn.textContent = 'Sending code…';
+
+      try {
+        const res  = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password, role })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showAlert(data.error || 'Registration failed', 'error');
+        } else {
+          pendingEmail = email;
+          document.getElementById('maskedEmail').textContent = data.maskedEmail;
+          showStep('otp');
+          startTimer(300);
+          focusFirstBox();
+        }
+      } catch {
+        showAlert('Connection error. Please try again.', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Create Account';
+      }
+    });
+
+    // ── OTP verification ──────────────────────────────────────
+    async function verifyOTP() {
+      const otp = getOTPValue();
+      if (otp.length !== 6) { showAlert('Please enter all 6 digits', 'error'); return; }
+
+      const btn = document.getElementById('verifyBtn');
+      btn.disabled = true; btn.textContent = 'Verifying…';
+
+      try {
+        const res  = await fetch('/api/auth/verify-register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: pendingEmail, otp })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showAlert(data.error || 'Verification failed', 'error');
+          shakeBoxes();
+        } else {
+          clearInterval(timerInterval);
+          window.location.href = '/dashboard';
+        }
+      } catch {
+        showAlert('Connection error', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Verify & Create Account';
+      }
+    }
+
+    async function resendOTP() {
+      const btn = document.getElementById('resendBtn');
+      btn.disabled = true; btn.textContent = 'Sending…';
+      try {
+        const res  = await fetch('/api/auth/resend-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: pendingEmail, purpose: 'register' })
+        });
+        const data = await res.json();
+        if (res.ok) { showAlert('New code sent!', 'success'); clearOTPBoxes(); startTimer(300); }
+        else        { showAlert(data.error || 'Failed to resend', 'error'); }
+      } catch {
+        showAlert('Connection error', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Resend Code';
+      }
+    }
+
+    function goBack() { clearInterval(timerInterval); clearOTPBoxes(); showStep('credentials'); }
+
+    // ── OTP box helpers ───────────────────────────────────────
+    function focusFirstBox() { document.querySelectorAll('.otp-box')[0]?.focus(); }
+    function getOTPValue()   { return [...document.querySelectorAll('.otp-box')].map(b => b.value).join(''); }
+    function clearOTPBoxes() { document.querySelectorAll('.otp-box').forEach(b => { b.value = ''; b.classList.remove('otp-filled'); }); }
+
+    function shakeBoxes() {
+      const el = document.getElementById('otpBoxes');
+      el.classList.add('shake'); clearOTPBoxes();
+      setTimeout(() => el.classList.remove('shake'), 600);
+      focusFirstBox();
+    }
+
+    document.querySelectorAll('.otp-box').forEach((box, i, all) => {
+      box.addEventListener('input', () => {
+        box.value = box.value.replace(/\D/, '');
+        box.classList.toggle('otp-filled', !!box.value);
+        if (box.value && i < all.length - 1) all[i + 1].focus();
+        if (getOTPValue().length === 6) verifyOTP();
+      });
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !box.value && i > 0) { all[i - 1].focus(); all[i - 1].value = ''; all[i - 1].classList.remove('otp-filled'); }
+      });
+      box.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+        [...text].forEach((ch, j) => { if (all[j]) { all[j].value = ch; all[j].classList.add('otp-filled'); } });
+        if (text.length === 6) verifyOTP();
+      });
+    });
+
+    function startTimer(seconds) {
+      clearInterval(timerInterval);
+      const el = document.getElementById('otpTimer');
+      function tick() {
+        if (seconds <= 0) { clearInterval(timerInterval); el.innerHTML = '<span style="color:#ef4444">Code expired — click Resend</span>'; return; }
+        const m = Math.floor(seconds / 60), s = seconds % 60;
+        el.textContent = `Expires in ${m}:${String(s).padStart(2, '0')}`;
+        seconds--;
+      }
+      tick(); timerInterval = setInterval(tick, 1000);
+    }
+
+    function showStep(step) {
+      document.getElementById('stepCredentials').classList.toggle('hidden', step !== 'credentials');
+      document.getElementById('stepOTP').classList.toggle('hidden', step !== 'otp');
+      document.getElementById('alert').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>

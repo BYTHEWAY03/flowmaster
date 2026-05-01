@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game — FlowMaster</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-game">
+
+  <nav class="navbar navbar-game">
+    <div class="nav-brand">⚡ FlowMaster</div>
+    <div class="game-info">
+      <span class="game-code-badge" id="gameCodeBadge"></span>
+      <span class="round-badge" id="roundBadge">Round —</span>
+    </div>
+    <div id="myScore" class="my-score">My Score: <strong>0</strong></div>
+  </nav>
+
+  <main class="game-layout">
+
+    <!-- Left: Scoreboard -->
+    <aside class="scoreboard">
+      <h2>Scoreboard</h2>
+      <ul id="scoreList" class="score-list"></ul>
+    </aside>
+
+    <!-- Centre: Question Area -->
+    <section class="question-area">
+
+      <!-- Idle state -->
+      <div id="idleState" class="game-state">
+        <div class="idle-icon">🃏</div>
+        <h2>Draw a Card</h2>
+        <p>Pick a card from the deck and scan its QR code,<br />or wait for the host to load the next question.</p>
+        <div id="hostIdle" class="hidden">
+          <hr class="divider" />
+          <p class="hint-text">As host, you can also load a question manually:</p>
+          <div class="card-input-row">
+            <input type="number" id="cardQuestionId" placeholder="Question ID from card" min="1" />
+            <button class="btn btn-secondary" onclick="loadCardQuestion()">Load Card</button>
+          </div>
+          <button class="btn btn-primary btn-lg" style="margin-top:1rem" onclick="loadRandomQuestion()">
+            Random Question
+          </button>
+          <hr class="divider" />
+          <button class="btn btn-danger" onclick="endGame()">End Game &amp; View Leaderboard</button>
+        </div>
+      </div>
+
+      <!-- Question state -->
+      <div id="questionState" class="game-state hidden">
+        <div class="question-header">
+          <span class="q-difficulty" id="qDifficulty"></span>
+          <span class="q-category"   id="qCategory"></span>
+          <span class="q-points"     id="qPoints"></span>
+        </div>
+        <p class="question-text" id="questionText"></p>
+        <pre class="code-block" id="codeSnippet" style="display:none"></pre>
+        <div class="options-grid" id="optionsGrid"></div>
+        <div id="hostReveal" class="hidden" style="margin-top:1rem; text-align:center">
+          <button class="btn btn-secondary" onclick="revealAnswer()">Reveal Answer</button>
+        </div>
+      </div>
+
+      <!-- Result state -->
+      <div id="resultState" class="game-state hidden">
+        <div id="resultBanner" class="result-banner"></div>
+        <div class="explanation-box" id="explanationBox"></div>
+        <div class="correct-answer-line" id="correctAnswerLine"></div>
+        <div id="hostNext" class="hidden" style="margin-top:1.5rem; text-align:center">
+          <button class="btn btn-primary btn-lg" onclick="showIdle()">Next Question</button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/game.js"></script>
+  <script>
+    const code = window.location.pathname.split('/').pop();
+    let currentUser = null;
+    let isHost      = false;
+    let myScore     = 0;
+    let currentQuestion = null;
+    let answered    = false;
+    const socket    = io();
+
+    document.getElementById('gameCodeBadge').textContent = code;
+
+    (async () => {
+      const data = await requireAuth();
+      currentUser = data.user;
+
+      const res = await fetch(`/api/game/${code}`);
+      if (!res.ok) { window.location.href = '/dashboard'; return; }
+      const { session, players } = await res.json();
+
+      isHost = session.host_id === currentUser.id;
+      if (isHost) {
+        document.getElementById('hostIdle').classList.remove('hidden');
+        document.getElementById('hostReveal').classList.remove('hidden');
+        document.getElementById('hostNext').classList.remove('hidden');
+      }
+
+      renderScoreboard(players.map(p => ({ username: p.username, score: p.score, hasAnswered: false })));
+      socket.emit('join-room', { code, username: currentUser.username, userId: currentUser.id });
+    })();
+
+    // ── Socket events ──────────────────────────────────────────
+    socket.on('room-update', ({ players }) => renderScoreboard(players));
+    socket.on('score-update', ({ players }) => renderScoreboard(players));
+
+    socket.on('new-question', ({ question, round }) => {
+      currentQuestion = question;
+      answered = false;
+      document.getElementById('roundBadge').textContent = `Round ${round}`;
+      showQuestion(question);
+    });
+
+    socket.on('answer-result', ({ isCorrect, correctAnswer, explanation, points, totalScore }) => {
+      myScore = totalScore;
+      document.querySelector('#myScore strong').textContent = myScore;
+      lockOptions();
+      // Highlight selected
+      const selected = document.querySelector('.option-btn.selected');
+      if (selected) selected.classList.add(isCorrect ? 'correct' : 'wrong');
+    });
+
+    socket.on('all-answered', ({ correctAnswer, explanation }) => {
+      showResult(correctAnswer, explanation);
+    });
+
+    socket.on('game-over', ({ finalScores, code: gameCode }) => {
+      window.location.href = `/leaderboard/${gameCode}`;
+    });
+
+    // ── UI functions ───────────────────────────────────────────
+    function showIdle() {
+      setState('idle');
+      currentQuestion = null;
+      answered = false;
+    }
+
+    function showQuestion(q) {
+      setState('question');
+      document.getElementById('qDifficulty').textContent = q.difficulty.toUpperCase();
+      document.getElementById('qDifficulty').className   = `q-difficulty diff-${q.difficulty}`;
+      document.getElementById('qCategory').textContent   = q.category;
+      document.getElementById('qPoints').textContent     = `+${q.points} pts`;
+      document.getElementById('questionText').textContent = q.question_text;
+
+      const codeEl = document.getElementById('codeSnippet');
+      if (q.code_snippet) {
+        codeEl.textContent = q.code_snippet;
+        codeEl.style.display = 'block';
+      } else {
+        codeEl.style.display = 'none';
+      }
+
+      const grid = document.getElementById('optionsGrid');
+      grid.innerHTML = ['A','B','C','D'].map(letter => `
+        <button class="option-btn" data-letter="${letter}" onclick="selectAnswer('${letter}')">
+          <span class="option-letter">${letter}</span>
+          <span class="option-text">${q['option_' + letter.toLowerCase()]}</span>
+        </button>`).join('');
+    }
+
+    function selectAnswer(letter) {
+      if (answered) return;
+      answered = true;
+
+      // Visual selection
+      document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+      document.querySelector(`[data-letter="${letter}"]`).classList.add('selected');
+
+      socket.emit('submit-answer', { code, answer: letter });
+
+      // Also persist to DB
+      if (currentQuestion) {
+        fetch(`/api/game/${code}/answer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ questionId: currentQuestion.id, answer: letter })
+        });
+      }
+    }
+
+    function lockOptions() {
+      document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+    }
+
+    function showResult(correctAnswer, explanation) {
+      setState('result');
+      document.getElementById('correctAnswerLine').textContent =
+        `Correct answer: ${correctAnswer}`;
+      document.getElementById('explanationBox').textContent = explanation;
+
+      const myBtn = document.querySelector('.option-btn.selected');
+      const isCorrect = myBtn?.dataset.letter === correctAnswer;
+      const banner = document.getElementById('resultBanner');
+      banner.textContent = isCorrect ? '✅ Correct!' : `❌ Incorrect`;
+      banner.className = `result-banner ${isCorrect ? 'banner-correct' : 'banner-wrong'}`;
+    }
+
+    function setState(name) {
+      ['idle','question','result'].forEach(s =>
+        document.getElementById(s + 'State').classList.toggle('hidden', s !== name)
+      );
+    }
+
+    function renderScoreboard(players) {
+      const sorted = [...players].sort((a, b) => b.score - a.score);
+      document.getElementById('scoreList').innerHTML = sorted.map((p, i) => `
+        <li class="score-item ${p.username === currentUser?.username ? 'me' : ''}">
+          <span class="rank">${i + 1}</span>
+          <span class="s-name">${p.username}${p.hasAnswered ? ' ✓' : ''}</span>
+          <span class="s-score">${p.score}</span>
+        </li>`).join('');
+    }
+
+    async function loadRandomQuestion() {
+      const res = await fetch(`/api/questions?limit=1`);
+      const data = await res.json();
+      if (data.questions?.length) socket.emit('send-question', { code, question: data.questions[0] });
+    }
+
+    async function loadCardQuestion() {
+      const id = document.getElementById('cardQuestionId').value;
+      if (!id) return;
+      const res = await fetch(`/api/questions/${id}`);
+      if (!res.ok) { showAlert('Question not found', 'error'); return; }
+      const data = await res.json();
+      socket.emit('send-question', { code, question: data.question });
+    }
+
+    function revealAnswer() {
+      socket.emit('reveal-answer', { code });
+    }
+
+    async function endGame() {
+      if (!confirm('End the game and show the final leaderboard?')) return;
+      await fetch(`/api/game/${code}/end`, { method: 'POST' });
+      socket.emit('end-game', { code });
+    }
+  </script>
+</body>
+</html>

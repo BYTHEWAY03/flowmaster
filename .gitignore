@@ -1,0 +1,9 @@
+node_modules/
+.env
+database/flowmaster.db
+database/flowmaster.db-shm
+database/flowmaster.db-wal
+*.db
+*.db-shm
+*.db-wal
+.DS_Store

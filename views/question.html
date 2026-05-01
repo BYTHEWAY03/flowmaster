@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Card Question — FlowMaster</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-auth">
+
+  <div class="auth-container" style="max-width:640px;margin:auto">
+    <div class="auth-card">
+      <div class="auth-logo">⚡ FlowMaster</div>
+      <div class="qr-scan-badge">📱 Physical Card Question</div>
+
+      <div id="loadingState">
+        <p class="hint-text" style="text-align:center">Loading question…</p>
+      </div>
+
+      <div id="questionView" class="hidden">
+        <div class="question-header" style="margin-bottom:1rem">
+          <span class="q-difficulty" id="qDifficulty"></span>
+          <span class="q-category"   id="qCategory"></span>
+          <span class="q-points"     id="qPoints"></span>
+        </div>
+        <p class="question-text" id="questionText" style="font-size:1.1rem; margin-bottom:1rem"></p>
+        <pre class="code-block" id="codeSnippet" style="display:none; margin-bottom:1rem"></pre>
+        <div class="options-grid" id="optionsGrid"></div>
+      </div>
+
+      <div id="resultView" class="hidden" style="text-align:center; padding:1rem 0">
+        <div id="resultBanner" class="result-banner" style="font-size:1.5rem;padding:1rem;border-radius:12px;margin-bottom:1rem"></div>
+        <div class="explanation-box" id="explanationBox" style="margin-bottom:1rem"></div>
+        <p id="correctAnswerLine" class="hint-text"></p>
+        <a href="/dashboard" class="btn btn-primary" style="margin-top:1rem">Back to Dashboard</a>
+      </div>
+
+      <div id="loginPrompt" class="hidden" style="text-align:center">
+        <p>You need to be logged in to answer questions.</p>
+        <a href="/login" class="btn btn-primary">Login</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    const questionId = window.location.pathname.split('/').pop();
+    let answered = false;
+    let currentQuestion = null;
+
+    (async () => {
+      // Check auth
+      const authRes = await fetch('/api/auth/me');
+      if (!authRes.ok) {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('loginPrompt').classList.remove('hidden');
+        return;
+      }
+
+      // Load question
+      const res = await fetch(`/api/questions/${questionId}`);
+      if (!res.ok) {
+        document.getElementById('loadingState').innerHTML = '<p class="hint-text" style="text-align:center;color:#ef4444">Question not found.</p>';
+        return;
+      }
+      const { question } = await res.json();
+      currentQuestion = question;
+
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('qDifficulty').textContent = question.difficulty.toUpperCase();
+      document.getElementById('qDifficulty').className   = `q-difficulty diff-${question.difficulty}`;
+      document.getElementById('qCategory').textContent   = question.category;
+      document.getElementById('qPoints').textContent     = `+${question.points} pts`;
+      document.getElementById('questionText').textContent = question.question_text;
+
+      const codeEl = document.getElementById('codeSnippet');
+      if (question.code_snippet) {
+        codeEl.textContent    = question.code_snippet;
+        codeEl.style.display  = 'block';
+      }
+
+      document.getElementById('optionsGrid').innerHTML =
+        ['A','B','C','D'].map(l => `
+          <button class="option-btn" data-letter="${l}" onclick="selectAnswer('${l}')">
+            <span class="option-letter">${l}</span>
+            <span class="option-text">${question['option_' + l.toLowerCase()]}</span>
+          </button>`).join('');
+
+      document.getElementById('questionView').classList.remove('hidden');
+    })();
+
+    function selectAnswer(letter) {
+      if (answered) return;
+      answered = true;
+      document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+      document.querySelector(`[data-letter="${letter}"]`).classList.add('selected');
+
+      const isCorrect = letter === currentQuestion.correct_answer;
+      document.getElementById('questionView').classList.add('hidden');
+      const banner = document.getElementById('resultBanner');
+      banner.textContent = isCorrect ? '✅ Correct!' : '❌ Incorrect';
+      banner.className   = `result-banner ${isCorrect ? 'banner-correct' : 'banner-wrong'}`;
+      document.getElementById('explanationBox').textContent    = currentQuestion.explanation;
+      document.getElementById('correctAnswerLine').textContent =
+        `Correct answer: ${currentQuestion.correct_answer}`;
+      document.getElementById('resultView').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

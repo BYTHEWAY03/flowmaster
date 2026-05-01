@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game Setup — FlowMaster</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-auth">
+
+  <div class="auth-container">
+    <div class="auth-card" style="max-width:520px">
+      <a href="/dashboard" class="auth-back">← Dashboard</a>
+      <div class="auth-logo">⚡ FlowMaster</div>
+      <h1 class="auth-title">Create Game</h1>
+      <p class="auth-sub">Configure your game session settings</p>
+
+      <div id="alert" class="alert hidden"></div>
+
+      <form id="setupForm" class="auth-form" novalidate>
+
+        <div class="form-group">
+          <label for="difficulty">Question Difficulty</label>
+          <select id="difficulty" name="difficulty" required>
+            <option value="mixed">Mixed (Easy + Medium + Hard)</option>
+            <option value="easy">Easy only (10 pts)</option>
+            <option value="medium">Medium only (20 pts)</option>
+            <option value="hard">Hard only (30 pts)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="totalRounds">Number of Rounds</label>
+          <input type="number" id="totalRounds" name="totalRounds"
+                 min="3" max="30" value="10" required />
+          <span class="field-error" id="roundsErr"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="maxPlayers">Maximum Players</label>
+          <input type="number" id="maxPlayers" name="maxPlayers"
+                 min="2" max="10" value="6" required />
+          <span class="field-error" id="playersErr"></span>
+        </div>
+
+        <div class="difficulty-info" id="diffInfo">
+          <strong>Mixed mode</strong> includes all difficulty levels:
+          Easy (10 pts), Medium (20 pts), Hard (30 pts).
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" id="submitBtn">
+          Create Session
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth();
+
+    const diffInfo = {
+      mixed:  'Mixed mode includes all difficulty levels: Easy (10 pts), Medium (20 pts), Hard (30 pts).',
+      easy:   'Easy mode — all questions worth 10 points. Recommended for beginners.',
+      medium: 'Medium mode — all questions worth 20 points. Good for intermediate learners.',
+      hard:   'Hard mode — all questions worth 30 points. For advanced Python students.'
+    };
+
+    document.getElementById('difficulty').addEventListener('change', function () {
+      document.getElementById('diffInfo').textContent = diffInfo[this.value] || '';
+    });
+
+    document.getElementById('setupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const difficulty  = document.getElementById('difficulty').value;
+      const totalRounds = parseInt(document.getElementById('totalRounds').value);
+      const maxPlayers  = parseInt(document.getElementById('maxPlayers').value);
+
+      let valid = true;
+      if (isNaN(totalRounds) || totalRounds < 3 || totalRounds > 30) {
+        showFieldError('roundsErr', 'Rounds must be between 3 and 30'); valid = false;
+      }
+      if (isNaN(maxPlayers) || maxPlayers < 2 || maxPlayers > 10) {
+        showFieldError('playersErr', 'Players must be between 2 and 10'); valid = false;
+      }
+      if (!valid) return;
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true; btn.textContent = 'Creating…';
+
+      try {
+        const res  = await fetch('/api/game/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ difficulty, totalRounds, maxPlayers })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showAlert(data.error || 'Failed to create game', 'error');
+        } else {
+          window.location.href = `/lobby/${data.sessionCode}`;
+        }
+      } catch {
+        showAlert('Connection error', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Create Session';
+      }
+    });
+  </script>
+</body>
+</html>

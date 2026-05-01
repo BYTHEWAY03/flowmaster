@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lobby — FlowMaster</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-lobby">
+
+  <nav class="navbar">
+    <a href="/dashboard" class="nav-brand">⚡ FlowMaster</a>
+    <span id="navUser" class="nav-user"></span>
+  </nav>
+
+  <main class="container lobby-main">
+    <div class="lobby-card">
+      <h1 class="lobby-title">Game Lobby</h1>
+
+      <div class="code-display">
+        <div class="code-label">Share this code with players</div>
+        <div class="code-value" id="sessionCode">------</div>
+        <button class="btn btn-ghost btn-sm" onclick="copyCode()">Copy</button>
+      </div>
+
+      <div class="lobby-meta" id="lobbyMeta">Loading settings…</div>
+
+      <div class="lobby-players">
+        <h2>Players <span id="playerCount">(0)</span></h2>
+        <ul id="playerList" class="player-list"></ul>
+      </div>
+
+      <div id="hostControls" class="host-controls hidden">
+        <p class="hint-text">All players must join before you start.</p>
+        <button id="startBtn" class="btn btn-primary btn-lg btn-full" onclick="startGame()">
+          Start Game
+        </button>
+      </div>
+      <div id="waitMsg" class="wait-msg hidden">
+        <div class="pulse-dot"></div>
+        <span>Waiting for the host to start the game…</span>
+      </div>
+    </div>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    const code = window.location.pathname.split('/').pop();
+    let currentUser = null;
+    let isHost = false;
+    const socket = io();
+
+    (async () => {
+      const data = await requireAuth();
+      currentUser = data.user;
+      document.getElementById('navUser').textContent = data.user.username;
+
+      // Load session info
+      const res = await fetch(`/api/game/${code}`);
+      if (!res.ok) { window.location.href = '/dashboard'; return; }
+      const { session, players } = await res.json();
+
+      document.getElementById('sessionCode').textContent = code;
+      document.getElementById('lobbyMeta').textContent =
+        `Difficulty: ${session.difficulty} | Max players: ${session.max_players} | Rounds: ${session.total_rounds}`;
+
+      isHost = session.host_id === currentUser.id;
+      document.getElementById(isHost ? 'hostControls' : 'waitMsg').classList.remove('hidden');
+
+      // Join socket room
+      socket.emit('join-room', { code, username: currentUser.username, userId: currentUser.id });
+    })();
+
+    socket.on('room-update', ({ players }) => {
+      renderPlayers(players);
+    });
+
+    socket.on('game-started', ({ code: gameCode }) => {
+      window.location.href = `/game/${gameCode}`;
+    });
+
+    function renderPlayers(players) {
+      const list = document.getElementById('playerList');
+      document.getElementById('playerCount').textContent = `(${players.length})`;
+      list.innerHTML = players.map(p => `
+        <li class="player-item">
+          <span class="player-avatar">${p.username[0].toUpperCase()}</span>
+          <span class="player-name">${p.username}</span>
+          <span class="player-badge">${p.score !== undefined ? p.score + ' pts' : 'Ready'}</span>
+        </li>`).join('');
+    }
+
+    async function startGame() {
+      const btn = document.getElementById('startBtn');
+      btn.disabled = true; btn.textContent = 'Starting…';
+      try {
+        const res = await fetch(`/api/game/${code}/start`, { method: 'POST' });
+        if (!res.ok) {
+          const d = await res.json();
+          showAlert(d.error || 'Failed to start', 'error');
+          btn.disabled = false; btn.textContent = 'Start Game';
+          return;
+        }
+        socket.emit('start-game', { code });
+      } catch {
+        btn.disabled = false; btn.textContent = 'Start Game';
+      }
+    }
+
+    function copyCode() {
+      navigator.clipboard.writeText(code).then(() => {
+        showAlert('Code copied!', 'success');
+      });
+    }
+  </script>
+</body>
+</html>

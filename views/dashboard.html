@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — FlowMaster</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-dashboard">
+
+  <nav class="navbar">
+    <a href="/dashboard" class="nav-brand">⚡ FlowMaster</a>
+    <div class="nav-links">
+      <span id="navUsername" class="nav-user"></span>
+      <a href="/admin" id="adminLink" class="btn btn-ghost hidden">Admin</a>
+      <button onclick="logout()" class="btn btn-ghost">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container dashboard-main">
+    <h1 class="page-title">Dashboard</h1>
+    <p id="welcomeMsg" class="page-sub"></p>
+
+    <div class="dashboard-grid">
+
+      <!-- Create Game -->
+      <div class="dash-card primary-card">
+        <div class="dash-card-icon">🎮</div>
+        <h2>Host a Game</h2>
+        <p>Create a new game session and invite players to join with a code.</p>
+        <a href="/setup" class="btn btn-primary btn-full">Create Game</a>
+      </div>
+
+      <!-- Join Game -->
+      <div class="dash-card">
+        <div class="dash-card-icon">🚪</div>
+        <h2>Join a Game</h2>
+        <p>Enter the 6-character code given by your host to join an active session.</p>
+        <div class="join-form">
+          <input type="text" id="joinCode" placeholder="Enter code (e.g. ABC123)"
+                 maxlength="6" style="text-transform:uppercase" />
+          <span class="field-error" id="joinErr"></span>
+          <button class="btn btn-secondary btn-full" onclick="joinGame()">Join Game</button>
+        </div>
+      </div>
+
+      <!-- Scan Card -->
+      <div class="dash-card">
+        <div class="dash-card-icon">📱</div>
+        <h2>Scan a Card</h2>
+        <p>Already in a game? Scan a physical card QR code to load its question directly.</p>
+        <p class="hint-text">Use your phone camera and the game URL will open automatically.</p>
+      </div>
+
+      <!-- How to Play -->
+      <div class="dash-card">
+        <div class="dash-card-icon">📖</div>
+        <h2>How to Play</h2>
+        <ol class="how-to-list">
+          <li>Host creates a game and selects difficulty</li>
+          <li>Players join with the session code</li>
+          <li>Draw a card, scan its QR code</li>
+          <li>Answer the Python question on your device</li>
+          <li>Score points &amp; advance your board token</li>
+        </ol>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    (async () => {
+      const data = await requireAuth();
+      document.getElementById('navUsername').textContent = data.user.username;
+      document.getElementById('welcomeMsg').textContent =
+        `Welcome back, ${data.user.username}! Ready to master Python Control Flow?`;
+      if (data.user.role === 'instructor') {
+        document.getElementById('adminLink').classList.remove('hidden');
+      }
+    })();
+
+    async function joinGame() {
+      const code = document.getElementById('joinCode').value.trim().toUpperCase();
+      document.getElementById('joinErr').textContent = '';
+      if (!code || code.length !== 6) {
+        document.getElementById('joinErr').textContent = 'Please enter a valid 6-character code';
+        return;
+      }
+      try {
+        const res  = await fetch('/api/game/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionCode: code })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          document.getElementById('joinErr').textContent = data.error || 'Failed to join game';
+        } else {
+          window.location.href = `/lobby/${data.sessionCode}`;
+        }
+      } catch {
+        document.getElementById('joinErr').textContent = 'Connection error';
+      }
+    }
+
+    document.getElementById('joinCode').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') joinGame();
+    });
+  </script>
+</body>
+</html>
