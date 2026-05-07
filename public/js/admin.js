@@ -159,7 +159,7 @@ async function loadUsers() {
   wrap.innerHTML = `
     <table class="data-table">
       <thead>
-        <tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Joined</th></tr>
+        <tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
       </thead>
       <tbody>${users.map(u => `
         <tr>
@@ -168,9 +168,23 @@ async function loadUsers() {
           <td>${escHtml(u.email)}</td>
           <td><span class="badge badge-${u.role === 'instructor' ? 'hard' : 'easy'}">${u.role}</span></td>
           <td>${new Date(u.created_at).toLocaleDateString()}</td>
+          <td>${u.role !== 'instructor'
+            ? `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${escHtml(u.username)}')">Delete</button>`
+            : '<span class="hint-text">—</span>'
+          }</td>
         </tr>`).join('')}
       </tbody>
     </table>`;
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Delete user "${username}" (ID: ${id})? This cannot be undone.`)) return;
+  const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (!res.ok) { showAlert(data.error || 'Failed to delete user.', 'error'); return; }
+  showAlert(`User "${username}" deleted.`, 'success');
+  loadStats();
+  loadUsers();
 }
 
 // ── QR Code generation ──────────────────────────────────────────

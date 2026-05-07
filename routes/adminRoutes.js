@@ -93,4 +93,27 @@ router.delete('/sessions/:id', requireInstructor, async (req, res) => {
     }
 });
 
+// Delete a user (cannot delete self or other instructors)
+router.delete('/users/:id', requireInstructor, async (req, res) => {
+    const targetId = parseInt(req.params.id);
+    const selfId   = req.session.user.id;
+
+    if (targetId === selfId)
+        return res.status(400).json({ error: 'You cannot delete your own account.' });
+
+    try {
+        const [rows] = await db.execute('SELECT role FROM users WHERE id = ?', [targetId]);
+        if (rows.length === 0)
+            return res.status(404).json({ error: 'User not found.' });
+        if (rows[0].role === 'instructor')
+            return res.status(403).json({ error: 'Cannot delete another instructor.' });
+
+        await db.execute('DELETE FROM users WHERE id = ?', [targetId]);
+        res.json({ message: 'User deleted.' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 module.exports = router;
