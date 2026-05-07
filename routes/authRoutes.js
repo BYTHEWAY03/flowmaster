@@ -127,7 +127,7 @@ router.post('/login', async (req, res) => {
     try {
         const identifier = email.trim().toLowerCase();
         const [rows] = await db.execute(
-            'SELECT * FROM users WHERE email = ? OR username = ?',
+            'SELECT * FROM users WHERE email = ? OR LOWER(username) = ?',
             [identifier, identifier]
         );
         if (rows.length === 0)
