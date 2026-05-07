@@ -29,8 +29,8 @@
 
         <form id="loginForm" class="auth-form" novalidate>
           <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" placeholder="you@example.com" required autocomplete="email" />
+            <label for="email">Email or Username</label>
+            <input type="text" id="email" placeholder="you@example.com or username" required autocomplete="username" />
             <span class="field-error" id="emailErr"></span>
           </div>
           <div class="form-group">
@@ -88,8 +88,8 @@
       const email    = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       let valid = true;
-      if (!email)    { showFieldError('emailErr',    'Email is required');    valid = false; }
-      if (!password) { showFieldError('passwordErr', 'Password is required'); valid = false; }
+      if (!email)    { showFieldError('emailErr',    'Email or username is required'); valid = false; }
+      if (!password) { showFieldError('passwordErr', 'Password is required');          valid = false; }
       if (!valid) return;
 
       const btn = document.getElementById('submitBtn');

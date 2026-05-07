@@ -122,12 +122,16 @@ router.post('/verify-register', async (req, res) => {
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password)
-        return res.status(400).json({ error: 'Email and password are required' });
+        return res.status(400).json({ error: 'Email or username and password are required' });
 
     try {
-        const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+        const identifier = email.trim().toLowerCase();
+        const [rows] = await db.execute(
+            'SELECT * FROM users WHERE email = ? OR username = ?',
+            [identifier, identifier]
+        );
         if (rows.length === 0)
-            return res.status(401).json({ error: 'Invalid email or password' });
+            return res.status(401).json({ error: 'Invalid credentials' });
 
         const user    = rows[0];
         const isMatch = await bcrypt.compare(password, user.password_hash);
