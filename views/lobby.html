@@ -80,14 +80,24 @@
       window.location.href = `/game/${gameCode}`;
     });
 
+    const BOT_NAMES = ['PyBot', 'CodeBot', 'LoopBot', 'FlowBot'];
+    const botCount  = parseInt(sessionStorage.getItem('botCount')) || 0;
+    const botDiff   = sessionStorage.getItem('botDiff') || 'medium';
+    const bots      = Array.from({ length: botCount }, (_, i) => ({
+      name: BOT_NAMES[i], difficulty: botDiff
+    }));
+
     function renderPlayers(players) {
       const list = document.getElementById('playerList');
-      document.getElementById('playerCount').textContent = `(${players.length})`;
-      list.innerHTML = players.map(p => `
+      const allPlayers = [...players, ...bots.map(b => ({
+        username: `🤖 ${b.name}`, score: 0, isBot: true
+      }))];
+      document.getElementById('playerCount').textContent = `(${allPlayers.length})`;
+      list.innerHTML = allPlayers.map(p => `
         <li class="player-item">
-          <span class="player-avatar">${p.username[0].toUpperCase()}</span>
-          <span class="player-name">${p.username}</span>
-          <span class="player-badge">${p.score !== undefined ? p.score + ' pts' : 'Ready'}</span>
+          <span class="player-avatar" style="${p.isBot ? 'background:#1e1e3a' : ''}">${p.isBot ? '🤖' : p.username[0].toUpperCase()}</span>
+          <span class="player-name">${p.username}${p.isBot ? ` <span style="font-size:.72rem;color:#64748b">(${botDiff} bot)</span>` : ''}</span>
+          <span class="player-badge">${p.isBot ? 'Bot' : 'Ready'}</span>
         </li>`).join('');
     }
 
@@ -102,7 +112,7 @@
           btn.disabled = false; btn.textContent = 'Start Game';
           return;
         }
-        socket.emit('start-game', { code });
+        socket.emit('start-game', { code, bots });
       } catch {
         btn.disabled = false; btn.textContent = 'Start Game';
       }

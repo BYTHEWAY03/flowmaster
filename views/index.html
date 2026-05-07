@@ -164,9 +164,52 @@
     </div>
   </section>
 
+  <!-- ── Global Leaderboard ─────────────────────────────────────── -->
+  <section class="lb-public-section">
+    <div class="container">
+      <h2 class="section-title">🏆 Global Leaderboard</h2>
+      <p class="section-sub">Top players ranked by total points across all games</p>
+      <div id="publicLbList" class="public-lb-wrap">
+        <p class="hint-text" style="text-align:center;padding:2rem">Loading…</p>
+      </div>
+      <div style="text-align:center;margin-top:1.5rem">
+        <a href="/register" class="btn btn-primary btn-lg">Join &amp; Compete</a>
+      </div>
+    </div>
+  </section>
+
   <footer class="footer">
     <p>FlowMaster &copy; 2026 — CT117-3-2-FWDD Individual Assignment</p>
   </footer>
 
+  <script src="/js/ranks.js"></script>
+  <script>
+    (async () => {
+      try {
+        const res  = await fetch('/api/game/public-leaderboard');
+        if (!res.ok) return;
+        const { leaderboard } = await res.json();
+        const medals   = ['🥇','🥈','🥉'];
+        const posClass = ['lb-top1','lb-top2','lb-top3'];
+        document.getElementById('publicLbList').innerHTML = leaderboard.length
+          ? leaderboard.map((u, i) => {
+              const pts  = parseInt(u.total_points) || 0;
+              const tier = getRank(pts);
+              return `
+                <div class="pub-lb-row" style="--rank-color:${tier.color};--rank-bg:${tier.bg}">
+                  <div class="pub-lb-pos ${posClass[i] || ''}">${medals[i] || (i + 1)}</div>
+                  <div class="pub-lb-name">${escHtml(u.username)}</div>
+                  <div class="pub-lb-badge">${tier.icon} ${getRankLabel(tier)}</div>
+                  <div class="pub-lb-pts">${pts.toLocaleString()} pts</div>
+                </div>`;
+            }).join('')
+          : '<p class="hint-text" style="text-align:center;padding:2rem">No games played yet — be the first!</p>';
+      } catch (_) {}
+    })();
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+  </script>
 </body>
 </html>

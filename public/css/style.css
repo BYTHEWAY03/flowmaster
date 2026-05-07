@@ -559,3 +559,59 @@ select option { background: #1e1e3a; }
   .code-value { font-size: 2.2rem; letter-spacing: .25rem; }
   .hero-title { font-size: 2rem; }
 }
+
+/* ── Public Leaderboard (landing page) ────────────────────────── */
+.lb-public-section {
+  padding: 5rem 0;
+  background: #07071a;
+  border-top: 1px solid #1e1e3a;
+}
+.section-sub {
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: -.5rem;
+  margin-bottom: 2rem;
+  font-size: .95rem;
+}
+.public-lb-wrap { max-width: 640px; margin: 0 auto; }
+.pub-lb-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 1.25rem;
+  background: #0d0d1f;
+  border: 1px solid #1e1e3a;
+  border-radius: 12px;
+  margin-bottom: .5rem;
+  transition: border-color .2s;
+}
+.pub-lb-row:hover { border-color: var(--rank-color, #7c3aed); }
+.pub-lb-pos {
+  width: 2rem;
+  font-weight: 800;
+  font-size: 1.1rem;
+  text-align: center;
+  flex-shrink: 0;
+  color: #64748b;
+}
+.lb-top1 { color: #ffd700; }
+.lb-top2 { color: #a8a9ad; }
+.lb-top3 { color: #cd7f32; }
+.pub-lb-name  { flex: 1; font-weight: 600; color: #e2e8f0; }
+.pub-lb-badge {
+  font-size: .72rem;
+  font-weight: 700;
+  padding: .2rem .6rem;
+  border-radius: 99px;
+  background: var(--rank-bg, rgba(124,58,237,.15));
+  color: var(--rank-color, #a855f7);
+  border: 1px solid var(--rank-color, #a855f7);
+  white-space: nowrap;
+}
+.pub-lb-pts {
+  font-weight: 700;
+  color: #a855f7;
+  min-width: 5rem;
+  text-align: right;
+  font-size: .9rem;
+}

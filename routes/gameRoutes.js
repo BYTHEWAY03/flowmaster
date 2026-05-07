@@ -5,6 +5,26 @@ const { requireLogin } = require('../middleware/auth');
 
 const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
+// Public leaderboard — no auth required (for landing page)
+router.get('/public-leaderboard', async (req, res) => {
+    try {
+        const [rows] = await db.execute(
+            `SELECT u.username,
+                    COALESCE(SUM(gp.score), 0) AS total_points,
+                    COUNT(DISTINCT gp.session_id) AS games_played
+             FROM users u
+             LEFT JOIN game_players gp ON gp.user_id = u.id
+             WHERE u.role = 'student'
+             GROUP BY u.id, u.username
+             ORDER BY total_points DESC
+             LIMIT 10`
+        );
+        res.json({ leaderboard: rows });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Create game session
 router.post('/create', requireLogin, async (req, res) => {
     const { difficulty, maxPlayers, totalRounds } = req.body;

@@ -49,6 +49,28 @@
           Easy (10 pts), Medium (20 pts), Hard (30 pts), Expert (50 pts).
         </div>
 
+        <hr style="border-color:#1e1e3a;margin:1.25rem 0" />
+
+        <div class="form-group">
+          <label for="botCount">🤖 Add Bots (0–4)</label>
+          <select id="botCount" name="botCount">
+            <option value="0">No bots — players only</option>
+            <option value="1">1 Bot</option>
+            <option value="2">2 Bots</option>
+            <option value="3">3 Bots</option>
+            <option value="4">4 Bots</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="botDiffGroup" style="display:none">
+          <label for="botDiff">Bot Difficulty</label>
+          <select id="botDiff" name="botDiff">
+            <option value="easy">🟢 Easy — 35% accuracy, slow answers</option>
+            <option value="medium" selected>🟡 Medium — 55% accuracy</option>
+            <option value="hard">🔴 Hard — 80% accuracy, fast answers</option>
+          </select>
+        </div>
+
         <button type="submit" class="btn btn-primary btn-full" id="submitBtn">
           Create Session
         </button>
@@ -72,6 +94,10 @@
       document.getElementById('diffInfo').textContent = diffInfo[this.value] || '';
     });
 
+    document.getElementById('botCount').addEventListener('change', function () {
+      document.getElementById('botDiffGroup').style.display = this.value > 0 ? '' : 'none';
+    });
+
     document.getElementById('setupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       clearErrors();
@@ -79,6 +105,8 @@
       const difficulty  = document.getElementById('difficulty').value;
       const totalRounds = parseInt(document.getElementById('totalRounds').value);
       const maxPlayers  = parseInt(document.getElementById('maxPlayers').value);
+      const botCount    = parseInt(document.getElementById('botCount').value) || 0;
+      const botDiff     = document.getElementById('botDiff').value;
 
       let valid = true;
       if (isNaN(totalRounds) || totalRounds < 3 || totalRounds > 30) {
@@ -96,12 +124,14 @@
         const res  = await fetch('/api/game/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ difficulty, totalRounds, maxPlayers })
+          body: JSON.stringify({ difficulty, totalRounds, maxPlayers, botCount, botDiff })
         });
         const data = await res.json();
         if (!res.ok) {
           showAlert(data.error || 'Failed to create game', 'error');
         } else {
+          sessionStorage.setItem('botCount', botCount);
+          sessionStorage.setItem('botDiff',  botDiff);
           window.location.href = `/lobby/${data.sessionCode}`;
         }
       } catch {

@@ -91,20 +91,32 @@ io.on('connection', (socket) => {
         io.to(code).emit('room-update', { players: _playerList(code) });
     });
 
-    // Host starts the game — all clients navigate to /game/:code
-    socket.on('start-game', ({ code }) => {
-        if (rooms[code]) io.to(code).emit('game-started', { code });
+    // Host starts the game — bots array: [{name, difficulty}]
+    socket.on('start-game', ({ code, bots = [] }) => {
+        if (!rooms[code]) return;
+        const BOT_NAMES = ['PyBot', 'CodeBot', 'LoopBot', 'FlowBot'];
+        rooms[code].bots = bots.slice(0, 4).map((b, i) => ({
+            id:         `bot_${i}`,
+            username:   `🤖 ${b.name || BOT_NAMES[i] || 'Bot' + (i + 1)}`,
+            difficulty: b.difficulty || 'medium',
+            score:      0,
+            hasAnswered: false
+        }));
+        io.to(code).emit('game-started', { code });
+        // Send initial room update including bots
+        io.to(code).emit('room-update', { players: _playerList(code) });
     });
 
     // Host sends a question (random or card-specific) to all players
     socket.on('send-question', ({ code, question }) => {
         if (!rooms[code]) return;
-        rooms[code].currentQuestion = question;
-        rooms[code].answers = {};
-        rooms[code].round  += 1;
-        for (const id in rooms[code].players) rooms[code].players[id].hasAnswered = false;
+        const room = rooms[code];
+        room.currentQuestion = question;
+        room.answers = {};
+        room.round  += 1;
+        for (const id in room.players) room.players[id].hasAnswered = false;
+        for (const bot of (room.bots || [])) bot.hasAnswered = false;
 
-        // Strip correct_answer and explanation so clients cannot inspect them
         io.to(code).emit('new-question', {
             question: {
                 id:            question.id,
@@ -118,8 +130,34 @@ io.on('connection', (socket) => {
                 category:      question.category,
                 points:        question.points
             },
-            round: rooms[code].round
+            round: room.round
         });
+
+        // Schedule bot answers
+        const accuracy = { easy: 0.35, medium: 0.55, hard: 0.80 };
+        const delay    = { easy: [6000,12000], medium: [3000,8000], hard: [2000,5000] };
+        for (const bot of (room.bots || [])) {
+            const [dMin, dMax] = delay[bot.difficulty] || [4000, 9000];
+            const wait = dMin + Math.random() * (dMax - dMin);
+            setTimeout(() => {
+                if (!rooms[code] || rooms[code].currentQuestion !== question || bot.hasAnswered) return;
+                const acc     = accuracy[bot.difficulty] || 0.5;
+                const correct = Math.random() < acc;
+                const options = ['A', 'B', 'C', 'D'];
+                const ans     = correct
+                    ? question.correct_answer
+                    : options.filter(o => o !== question.correct_answer)[Math.floor(Math.random() * 3)];
+                const isCorrect   = ans === question.correct_answer;
+                const pts         = isCorrect ? question.points : 0;
+                bot.hasAnswered   = true;
+                bot.score        += pts;
+                room.answers[bot.id] = { username: bot.username, answer: ans, isCorrect, points: pts };
+                io.to(code).emit('score-update', { players: _playerList(code) });
+                const allDone = Object.values(room.players).every(p => p.hasAnswered)
+                             && (room.bots || []).every(b => b.hasAnswered);
+                if (allDone) _revealAnswers(code);
+            }, wait);
+        }
     });
 
     // Player submits answer — evaluate server-side
@@ -137,7 +175,6 @@ io.on('connection', (socket) => {
         player.score      += points;
         room.answers[socket.id] = { username: player.username, answer, isCorrect, points };
 
-        // Private result to the answering player
         socket.emit('answer-result', {
             isCorrect,
             correctAnswer: question.correct_answer,
@@ -146,22 +183,21 @@ io.on('connection', (socket) => {
             totalScore:    player.score
         });
 
-        // Broadcast updated scores to everyone
         io.to(code).emit('score-update', { players: _playerList(code) });
 
-        // Auto-reveal when all players have answered
-        const allDone = Object.values(room.players).every(p => p.hasAnswered);
+        const allDone = Object.values(room.players).every(p => p.hasAnswered)
+                     && (room.bots || []).every(b => b.hasAnswered);
         if (allDone) _revealAnswers(code);
     });
 
-    // Host manually reveals answer before all players have answered
+    // Host manually reveals answer
     socket.on('reveal-answer', ({ code }) => _revealAnswers(code));
 
     // Host ends the game
     socket.on('end-game', ({ code }) => {
         const room = rooms[code];
         if (!room) return;
-        const finalScores = Object.values(room.players).sort((a, b) => b.score - a.score);
+        const finalScores = _playerList(code).sort((a, b) => b.score - a.score);
         io.to(code).emit('game-over', { finalScores, code });
         delete rooms[code];
     });
@@ -178,11 +214,15 @@ io.on('connection', (socket) => {
 
     // ── helpers ──
     function _playerList(code) {
-        return Object.values(rooms[code]?.players || {}).map(p => ({
-            username:   p.username,
-            score:      p.score,
-            hasAnswered: p.hasAnswered
+        const room = rooms[code];
+        if (!room) return [];
+        const humans = Object.values(room.players).map(p => ({
+            username: p.username, score: p.score, hasAnswered: p.hasAnswered, isBot: false
         }));
+        const bots = (room.bots || []).map(b => ({
+            username: b.username, score: b.score, hasAnswered: b.hasAnswered, isBot: true
+        }));
+        return [...humans, ...bots];
     }
 
     function _revealAnswers(code) {
