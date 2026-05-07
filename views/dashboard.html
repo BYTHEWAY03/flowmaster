@@ -5,6 +5,85 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard — FlowMaster</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    /* ── Rank Card ─────────────────────────────────────── */
+    .rank-card {
+      background: #0d0d1f;
+      border: 1px solid #1e1e3a;
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .rank-icon {
+      font-size: 3rem;
+      line-height: 1;
+      filter: drop-shadow(0 0 12px var(--rank-color, #a855f7));
+    }
+    .rank-info { flex: 1; }
+    .rank-name {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--rank-color, #a855f7);
+      letter-spacing: .5px;
+    }
+    .rank-pts  { color: #64748b; font-size: .85rem; margin-top: .2rem; }
+    .rank-progress-bar {
+      margin-top: .75rem;
+      height: 6px;
+      background: #1e1e3a;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .rank-progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--rank-color, #a855f7);
+      transition: width .6s ease;
+    }
+    .rank-next { color: #475569; font-size: .78rem; margin-top: .4rem; }
+
+    /* ── Global Leaderboard ────────────────────────────── */
+    .leaderboard-section { margin-top: 2rem; }
+    .leaderboard-section h2 { margin-bottom: 1rem; }
+    .lb-row {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .7rem 1rem;
+      border-radius: 10px;
+      margin-bottom: .4rem;
+      background: #0d0d1f;
+      border: 1px solid #1e1e3a;
+      transition: border-color .2s;
+    }
+    .lb-row.me { border-color: #7c3aed; background: rgba(124,58,237,.08); }
+    .lb-pos {
+      width: 1.8rem;
+      font-weight: 800;
+      text-align: center;
+      font-size: .95rem;
+      color: #64748b;
+      flex-shrink: 0;
+    }
+    .lb-pos.top1 { color: #ffd700; }
+    .lb-pos.top2 { color: #a8a9ad; }
+    .lb-pos.top3 { color: #cd7f32; }
+    .lb-medal { font-size: 1.1rem; flex-shrink: 0; }
+    .lb-name  { flex: 1; font-weight: 600; color: #e2e8f0; }
+    .lb-rank-badge {
+      font-size: .72rem;
+      font-weight: 700;
+      padding: .15rem .5rem;
+      border-radius: 99px;
+      background: var(--rank-bg, rgba(124,58,237,.15));
+      color: var(--rank-color, #a855f7);
+      border: 1px solid var(--rank-color, #a855f7);
+    }
+    .lb-pts { font-weight: 700; color: #a855f7; min-width: 4rem; text-align: right; }
+  </style>
 </head>
 <body class="page-dashboard">
 
@@ -20,6 +99,19 @@
   <main class="container dashboard-main">
     <h1 class="page-title">Dashboard</h1>
     <p id="welcomeMsg" class="page-sub"></p>
+
+    <!-- Rank Card -->
+    <div class="rank-card" id="rankCard" style="display:none">
+      <div class="rank-icon" id="rankIcon"></div>
+      <div class="rank-info">
+        <div class="rank-name" id="rankName"></div>
+        <div class="rank-pts"  id="rankPts"></div>
+        <div class="rank-progress-bar">
+          <div class="rank-progress-fill" id="rankFill" style="width:0%"></div>
+        </div>
+        <div class="rank-next" id="rankNext"></div>
+      </div>
+    </div>
 
     <div class="dashboard-grid">
 
@@ -66,19 +158,96 @@
       </div>
 
     </div>
+
+    <!-- Global Leaderboard -->
+    <div class="leaderboard-section">
+      <h2>🏆 Global Leaderboard</h2>
+      <div id="lbList"><p class="hint-text">Loading…</p></div>
+    </div>
+
   </main>
 
   <script src="/js/auth.js"></script>
+  <script src="/js/ranks.js"></script>
   <script>
+    let currentUser = null;
+
     (async () => {
       const data = await requireAuth();
+      currentUser = data.user;
       document.getElementById('navUsername').textContent = data.user.username;
       document.getElementById('welcomeMsg').textContent =
         `Welcome back, ${data.user.username}! Ready to master Python Control Flow?`;
       if (data.user.role === 'instructor') {
         document.getElementById('adminLink').classList.remove('hidden');
       }
+
+      // Load user rank (students only)
+      if (data.user.role === 'student') {
+        loadMyRank();
+      }
+
+      loadLeaderboard();
     })();
+
+    async function loadMyRank() {
+      try {
+        const res  = await fetch('/api/game/my-stats');
+        if (!res.ok) return;
+        const { stats } = await res.json();
+        const pts  = parseInt(stats.total_points) || 0;
+        const tier = getRank(pts);
+        const next = getNextRank(pts);
+
+        const card = document.getElementById('rankCard');
+        card.style.display = 'flex';
+        card.style.setProperty('--rank-color', tier.color);
+
+        document.getElementById('rankIcon').textContent = tier.icon;
+        document.getElementById('rankName').textContent = getRankLabel(tier);
+        document.getElementById('rankPts').textContent  =
+          `${pts.toLocaleString()} pts · ${stats.games_played} games played`;
+
+        if (next) {
+          const tierRange = next.tier.min - tier.min;
+          const progress  = Math.min(100, Math.round(((pts - tier.min) / tierRange) * 100));
+          document.getElementById('rankFill').style.width = progress + '%';
+          document.getElementById('rankNext').textContent =
+            `${next.pointsNeeded} pts to ${getRankLabel(next.tier)}`;
+        } else {
+          document.getElementById('rankFill').style.width = '100%';
+          document.getElementById('rankNext').textContent = '👑 Maximum rank achieved!';
+        }
+      } catch (e) { /* silent */ }
+    }
+
+    async function loadLeaderboard() {
+      try {
+        const res  = await fetch('/api/game/global-leaderboard');
+        if (!res.ok) return;
+        const { leaderboard } = await res.json();
+
+        const medals = ['🥇','🥈','🥉'];
+        const posClass = ['top1','top2','top3'];
+
+        document.getElementById('lbList').innerHTML = leaderboard.length
+          ? leaderboard.map((u, i) => {
+              const pts  = parseInt(u.total_points) || 0;
+              const tier = getRank(pts);
+              const isMe = currentUser && u.id === currentUser.id;
+              return `
+                <div class="lb-row${isMe ? ' me' : ''}"
+                     style="--rank-color:${tier.color};--rank-bg:${tier.bg}">
+                  <div class="lb-pos ${posClass[i] || ''}">${i + 1}</div>
+                  <div class="lb-medal">${medals[i] || tier.icon}</div>
+                  <div class="lb-name">${escHtml(u.username)}${isMe ? ' <span style="color:#7c3aed;font-size:.75rem">(you)</span>' : ''}</div>
+                  <div class="lb-rank-badge">${tier.icon} ${getRankLabel(tier)}</div>
+                  <div class="lb-pts">${pts.toLocaleString()}</div>
+                </div>`;
+            }).join('')
+          : '<p class="hint-text">No games played yet. Be the first on the board!</p>';
+      } catch (e) { /* silent */ }
+    }
 
     async function joinGame() {
       const code = document.getElementById('joinCode').value.trim().toUpperCase();
@@ -107,6 +276,10 @@
     document.getElementById('joinCode').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') joinGame();
     });
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
   </script>
 </body>
 </html>

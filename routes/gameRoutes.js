@@ -188,6 +188,43 @@ router.get('/:code/leaderboard', requireLogin, async (req, res) => {
     }
 });
 
+// Global leaderboard — total points per user across all games
+router.get('/global-leaderboard', requireLogin, async (req, res) => {
+    try {
+        const [rows] = await db.execute(
+            `SELECT u.id, u.username,
+                    COALESCE(SUM(gp.score), 0) AS total_points,
+                    COUNT(DISTINCT gp.session_id)        AS games_played
+             FROM users u
+             LEFT JOIN game_players gp ON gp.user_id = u.id
+             WHERE u.role = 'student'
+             GROUP BY u.id, u.username
+             ORDER BY total_points DESC
+             LIMIT 20`
+        );
+        res.json({ leaderboard: rows });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Current user total stats
+router.get('/my-stats', requireLogin, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const [rows] = await db.execute(
+            `SELECT COALESCE(SUM(gp.score), 0) AS total_points,
+                    COUNT(DISTINCT gp.session_id) AS games_played
+             FROM game_players gp WHERE gp.user_id = ?`,
+            [userId]
+        );
+        res.json({ stats: rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // End game (host only)
 router.post('/:code/end', requireLogin, async (req, res) => {
     try {
