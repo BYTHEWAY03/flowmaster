@@ -87,6 +87,7 @@
     let myScore     = 0;
     let currentQuestion = null;
     let answered    = false;
+    let sessionDifficulty = 'mixed';
     const socket    = io();
 
     document.getElementById('gameCodeBadge').textContent = code;
@@ -99,6 +100,7 @@
       if (!res.ok) { window.location.href = '/dashboard'; return; }
       const { session, players } = await res.json();
 
+      sessionDifficulty = session.difficulty || 'mixed';
       isHost = session.host_id === currentUser.id;
       if (isHost) {
         document.getElementById('hostIdle').classList.remove('hidden');
@@ -223,7 +225,8 @@
     }
 
     async function loadRandomQuestion() {
-      const res = await fetch(`/api/questions?limit=1`);
+      const diff = sessionDifficulty !== 'mixed' ? `&difficulty=${sessionDifficulty}` : '';
+      const res = await fetch(`/api/questions?limit=1${diff}`);
       const data = await res.json();
       if (data.questions?.length) socket.emit('send-question', { code, question: data.questions[0] });
     }

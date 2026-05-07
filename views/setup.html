@@ -22,10 +22,11 @@
         <div class="form-group">
           <label for="difficulty">Question Difficulty</label>
           <select id="difficulty" name="difficulty" required>
-            <option value="mixed">Mixed (Easy + Medium + Hard)</option>
+            <option value="mixed">Mixed (All difficulties)</option>
             <option value="easy">Easy only (10 pts)</option>
             <option value="medium">Medium only (20 pts)</option>
             <option value="hard">Hard only (30 pts)</option>
+            <option value="expert">💎 Expert only (50 pts)</option>
           </select>
         </div>
 
@@ -45,7 +46,7 @@
 
         <div class="difficulty-info" id="diffInfo">
           <strong>Mixed mode</strong> includes all difficulty levels:
-          Easy (10 pts), Medium (20 pts), Hard (30 pts).
+          Easy (10 pts), Medium (20 pts), Hard (30 pts), Expert (50 pts).
         </div>
 
         <button type="submit" class="btn btn-primary btn-full" id="submitBtn">
@@ -60,10 +61,11 @@
     requireAuth();
 
     const diffInfo = {
-      mixed:  'Mixed mode includes all difficulty levels: Easy (10 pts), Medium (20 pts), Hard (30 pts).',
+      mixed:  'Mixed mode includes all difficulty levels: Easy (10 pts), Medium (20 pts), Hard (30 pts), Expert (50 pts).',
       easy:   'Easy mode — all questions worth 10 points. Recommended for beginners.',
       medium: 'Medium mode — all questions worth 20 points. Good for intermediate learners.',
-      hard:   'Hard mode — all questions worth 30 points. For advanced Python students.'
+      hard:   'Hard mode — all questions worth 30 points. For advanced Python students.',
+      expert: '💎 Expert mode — all questions worth 50 points. Extreme challenge for Python pros.'
     };
 
     document.getElementById('difficulty').addEventListener('change', function () {

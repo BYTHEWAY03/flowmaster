@@ -59,8 +59,8 @@ router.post('/', requireInstructor, async (req, res) => {
     if (!['A', 'B', 'C', 'D'].includes(correct_answer.toUpperCase())) {
         return res.status(400).json({ error: 'Correct answer must be A, B, C, or D' });
     }
-    if (!['easy', 'medium', 'hard'].includes(difficulty)) {
-        return res.status(400).json({ error: 'Difficulty must be easy, medium, or hard' });
+    if (!['easy', 'medium', 'hard', 'expert'].includes(difficulty)) {
+        return res.status(400).json({ error: 'Difficulty must be easy, medium, hard, or expert' });
     }
 
     try {
