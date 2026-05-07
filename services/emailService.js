@@ -11,14 +11,23 @@ async function sendOTP(email, otp, purpose) {
     const html = buildEmailHTML(heading, bodyText, otp);
 
     if (!process.env.BREVO_API_KEY) {
-        console.log('\n' + '═'.repeat(52));
-        console.log(`  OTP  →  ${otp}  (to: ${email})`);
-        console.log(`  Purpose: ${purpose}  |  Expires in 5 minutes`);
-        console.log('═'.repeat(52) + '\n');
+        _logOTP(otp, email, purpose);
         return;
     }
 
-    await sendViaBrevo(email, subject, html);
+    try {
+        await sendViaBrevo(email, subject, html);
+    } catch (err) {
+        console.error('[Email] Failed to send via Brevo — falling back to log');
+        _logOTP(otp, email, purpose);
+    }
+}
+
+function _logOTP(otp, email, purpose) {
+    console.log('\n' + '═'.repeat(52));
+    console.log(`  OTP  →  ${otp}  (to: ${email})`);
+    console.log(`  Purpose: ${purpose}  |  Expires in 5 minutes`);
+    console.log('═'.repeat(52) + '\n');
 }
 
 // ── Brevo HTTP API ───────────────────────────────────────────────────────────
