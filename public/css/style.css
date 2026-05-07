@@ -151,6 +151,59 @@ select option { background: #1e1e3a; }
 .feature-card p  { font-size: .9rem; color: var(--text-muted); line-height: 1.6; }
 .footer { text-align: center; padding: 2rem; color: var(--text-muted); font-size: .85rem; border-top: 1px solid var(--border); }
 
+/* ── Hybrid Components Section ─────────────────────────────────── */
+.hybrid-section { padding: 5rem 1.5rem; background: var(--bg); }
+.hybrid-header  { text-align: center; margin-bottom: 3rem; }
+.hybrid-badge {
+  display: inline-block; background: rgba(245,158,11,.15); color: #fcd34d;
+  border: 1px solid rgba(245,158,11,.35); border-radius: 999px;
+  padding: .35rem .9rem; font-size: .8rem; font-weight: 600; margin-bottom: 1rem;
+}
+.hybrid-sub { color: var(--text-muted); font-size: .95rem; max-width: 520px; margin: 0 auto; }
+
+.hybrid-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+  max-width: 980px;
+  margin: 0 auto;
+}
+.hybrid-card {
+  display: flex; gap: 1rem; align-items: flex-start;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.5rem;
+  transition: border-color .2s, transform .2s;
+}
+.hybrid-card:hover {
+  border-color: rgba(124,58,237,.4);
+  transform: translateY(-2px);
+}
+.hybrid-card-wide { grid-column: 1 / -1; }
+
+.hybrid-icon-wrap {
+  font-size: 1.75rem; flex-shrink: 0;
+  width: 48px; height: 48px; border-radius: 10px;
+  background: rgba(124,58,237,.12); border: 1px solid rgba(124,58,237,.25);
+  display: flex; align-items: center; justify-content: center;
+}
+.hybrid-card-body { flex: 1; }
+.hybrid-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .4rem;
+}
+.hybrid-card-top h3 { font-size: 1rem; font-weight: 700; }
+.hybrid-check {
+  background: rgba(16,185,129,.15); color: #6ee7b7;
+  border: 1px solid rgba(16,185,129,.35); border-radius: 999px;
+  font-size: .75rem; font-weight: 700; padding: .1rem .55rem;
+}
+.hybrid-card-body p { font-size: .88rem; color: var(--text-muted); line-height: 1.65; margin: 0; }
+
+@media (max-width: 640px) {
+  .hybrid-grid { grid-template-columns: 1fr; }
+  .hybrid-card-wide { grid-column: unset; }
+}
+
 /* ── Auth Pages ────────────────────────────────────────────────── */
 .page-auth { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
 .auth-container { width: 100%; max-width: 440px; }
@@ -366,9 +419,10 @@ select option { background: #1e1e3a; }
 .data-table td { padding: .65rem 1rem; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: top; max-width: 300px; }
 .data-table tr:hover td { background: var(--surface-hover); }
 .badge { display: inline-block; padding: .15rem .55rem; border-radius: 999px; font-size: .75rem; font-weight: 600; }
-.badge-easy   { background: rgba(16,185,129,.2); color: #6ee7b7; }
-.badge-medium { background: rgba(245,158,11,.2); color: #fcd34d; }
-.badge-hard   { background: rgba(239,68,68,.2);  color: #fca5a5; }
+.badge-easy   { background: rgba(16,185,129,.2);  color: #6ee7b7; }
+.badge-medium { background: rgba(245,158,11,.2);  color: #fcd34d; }
+.badge-hard   { background: rgba(239,68,68,.2);   color: #fca5a5; }
+.badge-expert { background: rgba(217,119,6,.25);  color: #fbbf24; border: 1px solid rgba(217,119,6,.4); }
 .badge-waiting  { background: rgba(148,163,184,.2); color: #94a3b8; }
 .badge-active   { background: rgba(16,185,129,.2);  color: #6ee7b7; }
 .badge-finished { background: rgba(124,58,237,.2);  color: #a78bfa; }
@@ -388,6 +442,45 @@ select option { background: #1e1e3a; }
 }
 
 /* ── Responsive ────────────────────────────────────────────────── */
+/* ── Auth Step Transitions ─────────────────────────────────────── */
+@keyframes stepEnter { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+@keyframes stepLeave { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-12px)} }
+.step-enter { animation: stepEnter .3s ease forwards; }
+.step-leave { animation: stepLeave .2s ease forwards; }
+
+/* Step progress indicator */
+.step-progress {
+  display: flex; align-items: center; justify-content: center;
+  gap: .5rem; margin-bottom: 2rem;
+}
+.step-pip {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--border); transition: background .35s, transform .35s;
+}
+.step-pip.active { background: var(--primary); transform: scale(1.45); }
+.step-pip.done   { background: var(--success); transform: scale(1); }
+.step-connector  {
+  width: 44px; height: 2px; border-radius: 2px;
+  background: var(--border); position: relative; overflow: hidden;
+}
+.step-connector::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--success); transform: scaleX(0);
+  transform-origin: left; transition: transform .4s ease;
+}
+.step-connector.done::after { transform: scaleX(1); }
+
+/* Button loading spinner */
+.btn-loading { position: relative; color: transparent !important; pointer-events: none; }
+.btn-loading::after {
+  content: ''; position: absolute;
+  width: 17px; height: 17px;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: btnSpin .55s linear infinite;
+}
+@keyframes btnSpin { to { transform: rotate(360deg); } }
+
 /* ── OTP Verification UI ───────────────────────────────────────── */
 .otp-header { text-align: center; margin-bottom: 1.5rem; }
 .otp-icon   { font-size: 3rem; margin-bottom: .75rem; }
@@ -402,14 +495,24 @@ select option { background: #1e1e3a; }
   display: flex; gap: .5rem; justify-content: center; margin: 1.25rem 0;
 }
 .otp-box {
-  width: 46px; height: 54px; text-align: center; font-size: 1.5rem;
+  width: 48px; height: 56px; text-align: center; font-size: 1.6rem;
   font-weight: 800; border-radius: 10px; padding: 0;
   background: var(--surface); border: 2px solid var(--border); color: var(--text);
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color .15s, box-shadow .15s, background .2s, color .2s;
   font-family: 'Courier New', monospace;
 }
-.otp-box:focus     { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124,58,237,.25); }
+.otp-box:focus      { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124,58,237,.25); }
 .otp-box.otp-filled { border-color: var(--primary); color: #a78bfa; }
+.otp-box.otp-success {
+  border-color: var(--success) !important; color: #6ee7b7 !important;
+  background: rgba(16,185,129,.1) !important;
+  animation: successPop .3s ease;
+}
+.otp-box.otp-error {
+  border-color: var(--danger) !important; color: #fca5a5 !important;
+  background: rgba(239,68,68,.08) !important;
+}
+@keyframes successPop { 0%{transform:scale(1)} 40%{transform:scale(1.12)} 100%{transform:scale(1)} }
 
 .otp-timer {
   text-align: center; font-size: .85rem; color: var(--text-muted);
@@ -431,6 +534,11 @@ select option { background: #1e1e3a; }
   90%    { transform: translateX(3px) }
 }
 .shake { animation: shake .55s ease; }
+
+@media (max-width: 480px) {
+  .otp-box { width: 42px; height: 50px; font-size: 1.4rem; }
+  .otp-boxes { gap: .35rem; }
+}
 
 @media (max-width: 768px) {
   .hero { flex-direction: column; padding: 2.5rem 1.5rem; text-align: center; }

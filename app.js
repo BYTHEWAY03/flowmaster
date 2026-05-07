@@ -20,11 +20,27 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Use PostgreSQL session store in production, memory store locally
+const sessionStore = process.env.DATABASE_URL
+    ? (() => {
+        const { Pool } = require('pg');
+        const pgPool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        return new (require('connect-pg-simple')(session))({
+            pool: pgPool,
+            createTableIfMissing: true
+        });
+      })()
+    : undefined;
+
 const sessionMiddleware = session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || 'flowmaster-secret-2024',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 }
+    cookie: { maxAge: 24 * 60 * 60 * 1000, secure: !!process.env.DATABASE_URL }
 });
 app.use(sessionMiddleware);
 

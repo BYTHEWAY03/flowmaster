@@ -175,16 +175,30 @@ async function loadUsers() {
 
 // ── QR Code generation ──────────────────────────────────────────
 async function generateQR() {
-  const id = document.getElementById('qrId').value;
-  if (!id || isNaN(id)) { showAlert('Enter a valid question ID', 'error'); return; }
+  const id = document.getElementById('qrId').value.trim();
+  if (!id || isNaN(id) || parseInt(id) < 1) {
+    showAlert('Please enter a valid question ID (a positive number).', 'error');
+    return;
+  }
+
+  document.getElementById('qrResult').classList.add('hidden');
 
   const res = await fetch(`/api/admin/qr/${id}`);
-  if (!res.ok) { showAlert('Failed to generate QR code', 'error'); return; }
   const data = await res.json();
+
+  if (res.status === 404) {
+    showAlert(`Question #${id} does not exist. Check the Questions tab for valid IDs.`, 'error');
+    return;
+  }
+  if (!res.ok) {
+    showAlert(data.error || 'Failed to generate QR code.', 'error');
+    return;
+  }
 
   document.getElementById('qrImage').src = data.qrCode;
   document.getElementById('qrUrl').textContent = data.url;
   document.getElementById('qrResult').classList.remove('hidden');
+  showAlert(`QR code generated for Question #${id} (${data.question.difficulty})`, 'success');
 }
 
 async function loadAllQRs() {

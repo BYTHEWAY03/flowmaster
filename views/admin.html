@@ -74,6 +74,7 @@
               <option value="easy">Easy (10 pts)</option>
               <option value="medium">Medium (20 pts)</option>
               <option value="hard">Hard (30 pts)</option>
+              <option value="expert">💎 Expert (50 pts)</option>
             </select>
           </div>
           <div class="form-group"><label>Category *</label><input id="qCat" type="text" placeholder="e.g. if-else, for-loop" /></div>
@@ -128,5 +129,11 @@
 
   <script src="/js/auth.js"></script>
   <script src="/js/admin.js"></script>
+  <script>
+    document.getElementById('qDiff').addEventListener('change', function () {
+      const pts = { easy: 10, medium: 20, hard: 30, expert: 50 };
+      document.getElementById('qPoints').value = pts[this.value] || 10;
+    });
+  </script>
 </body>
 </html>

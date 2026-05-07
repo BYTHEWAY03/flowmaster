@@ -73,6 +73,97 @@
     </div>
   </section>
 
+  <!-- ── Hybrid Board Game Components ──────────────────────────── -->
+  <section class="hybrid-section">
+    <div class="container">
+      <div class="hybrid-header">
+        <div class="hybrid-badge">Hybrid Design</div>
+        <h2 class="section-title" style="margin-bottom:.75rem">Hybrid Board Game Components</h2>
+        <p class="hybrid-sub">FlowMaster is built on 7 core principles that define a true hybrid board game experience.</p>
+      </div>
+      <div class="hybrid-grid">
+
+        <div class="hybrid-card">
+          <div class="hybrid-icon-wrap">🎲</div>
+          <div class="hybrid-card-body">
+            <div class="hybrid-card-top">
+              <h3>Physical Components</h3>
+              <span class="hybrid-check">✓</span>
+            </div>
+            <p>A physical game board with player tokens, a deck of QR-coded question cards, and dice determine movement and turn order across the board.</p>
+          </div>
+        </div>
+
+        <div class="hybrid-card">
+          <div class="hybrid-icon-wrap">💻</div>
+          <div class="hybrid-card-body">
+            <div class="hybrid-card-top">
+              <h3>Digital Component</h3>
+              <span class="hybrid-check">✓</span>
+            </div>
+            <p>A full-stack web application handles user accounts, question delivery, answer validation, scoring, and live leaderboards across all players' devices.</p>
+          </div>
+        </div>
+
+        <div class="hybrid-card">
+          <div class="hybrid-icon-wrap">🔗</div>
+          <div class="hybrid-card-body">
+            <div class="hybrid-card-top">
+              <h3>Interdependence</h3>
+              <span class="hybrid-check">✓</span>
+            </div>
+            <p>Neither component works alone — physical cards are meaningless without the web app to load them, and the digital game cannot progress without players drawing cards from the board.</p>
+          </div>
+        </div>
+
+        <div class="hybrid-card">
+          <div class="hybrid-icon-wrap">📱</div>
+          <div class="hybrid-card-body">
+            <div class="hybrid-card-top">
+              <h3>Digital Interaction</h3>
+              <span class="hybrid-check">✓</span>
+            </div>
+            <p>Scanning the QR code on a physical card triggers the web app to load that specific question, directly linking a physical action to a digital response in real time.</p>
+          </div>
+        </div>
+
+        <div class="hybrid-card">
+          <div class="hybrid-icon-wrap">📡</div>
+          <div class="hybrid-card-body">
+            <div class="hybrid-card-top">
+              <h3>Data Sharing</h3>
+              <span class="hybrid-check">✓</span>
+            </div>
+            <p>Points earned digitally are broadcast via WebSocket to all players, who then use those scores to move their physical tokens the corresponding number of spaces on the board.</p>
+          </div>
+        </div>
+
+        <div class="hybrid-card">
+          <div class="hybrid-icon-wrap">📊</div>
+          <div class="hybrid-card-body">
+            <div class="hybrid-card-top">
+              <h3>State Tracking</h3>
+              <span class="hybrid-check">✓</span>
+            </div>
+            <p>The server tracks every player's score, current round, and game status. This digital state directly determines how far each player's token advances on the physical board.</p>
+          </div>
+        </div>
+
+        <div class="hybrid-card hybrid-card-wide">
+          <div class="hybrid-icon-wrap">⚡</div>
+          <div class="hybrid-card-body">
+            <div class="hybrid-card-top">
+              <h3>Real-Time Feedback</h3>
+              <span class="hybrid-check">✓</span>
+            </div>
+            <p>Answers, results, and leaderboard updates are pushed instantly to all connected devices via Socket.io. Players see scores change the moment a question is answered, keeping the physical and digital game perfectly in sync.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
   <footer class="footer">
     <p>FlowMaster &copy; 2026 — CT117-3-2-FWDD Individual Assignment</p>
   </footer>

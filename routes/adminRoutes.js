@@ -63,16 +63,21 @@ router.get('/questions', requireInstructor, async (req, res) => {
 
 // Generate QR code for a question (physical card integration)
 router.get('/qr/:questionId', requireInstructor, async (req, res) => {
-    const baseUrl = req.protocol + '://' + req.get('host');
-    const questionUrl = `${baseUrl}/q/${req.params.questionId}`;
+    const id = parseInt(req.params.questionId);
+    if (isNaN(id) || id < 1) return res.status(400).json({ error: 'Invalid question ID' });
 
     try {
+        const [rows] = await db.execute('SELECT id, question_text, difficulty FROM questions WHERE id = ?', [id]);
+        if (rows.length === 0) return res.status(404).json({ error: `Question #${id} does not exist` });
+
+        const baseUrl = req.protocol + '://' + req.get('host');
+        const questionUrl = `${baseUrl}/q/${id}`;
         const qrDataUrl = await QRCode.toDataURL(questionUrl, {
             width: 300,
             margin: 2,
             color: { dark: '#6c3483', light: '#ffffff' }
         });
-        res.json({ qrCode: qrDataUrl, url: questionUrl, questionId: req.params.questionId });
+        res.json({ qrCode: qrDataUrl, url: questionUrl, questionId: id, question: rows[0] });
     } catch (err) {
         res.status(500).json({ error: 'Failed to generate QR code' });
     }

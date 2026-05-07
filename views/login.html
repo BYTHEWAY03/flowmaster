@@ -13,9 +13,16 @@
       <a href="/" class="auth-back">← Back</a>
       <div class="auth-logo">⚡ FlowMaster</div>
 
+      <!-- Step progress -->
+      <div class="step-progress">
+        <div class="step-pip active" id="pip1"></div>
+        <div class="step-connector" id="stepConn"></div>
+        <div class="step-pip" id="pip2"></div>
+      </div>
+
       <div id="alert" class="alert hidden"></div>
 
-      <!-- ── Step 1: Credentials ── -->
+      <!-- Step 1: Credentials -->
       <div id="stepCredentials">
         <h1 class="auth-title">Welcome Back</h1>
         <p class="auth-sub">Sign in to continue your journey</p>
@@ -36,7 +43,7 @@
         <p class="auth-switch">Don't have an account? <a href="/register">Register here</a></p>
       </div>
 
-      <!-- ── Step 2: OTP Verification ── -->
+      <!-- Step 2: OTP -->
       <div id="stepOTP" class="hidden">
         <div class="otp-header">
           <div class="otp-icon">📧</div>
@@ -58,7 +65,7 @@
         <button class="btn btn-primary btn-full" id="verifyBtn" onclick="verifyOTP()">Verify Code</button>
 
         <div class="otp-resend">
-          <span id="resendText" class="hint-text">Didn't receive it?</span>
+          <span class="hint-text">Didn't receive it?</span>
           <button class="btn btn-ghost btn-sm" id="resendBtn" onclick="resendOTP()">Resend Code</button>
         </div>
 
@@ -81,22 +88,19 @@
       const email    = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       let valid = true;
-
       if (!email)    { showFieldError('emailErr',    'Email is required');    valid = false; }
       if (!password) { showFieldError('passwordErr', 'Password is required'); valid = false; }
       if (!valid) return;
 
       const btn = document.getElementById('submitBtn');
-      btn.disabled = true; btn.textContent = 'Sending code…';
+      setLoading(btn, true);
 
       try {
         const res  = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
         const data = await res.json();
-
         if (!res.ok) {
           showAlert(data.error || 'Login failed', 'error');
         } else {
@@ -109,7 +113,7 @@
       } catch {
         showAlert('Connection error. Please try again.', 'error');
       } finally {
-        btn.disabled = false; btn.textContent = 'Sign In';
+        setLoading(btn, false, 'Sign In');
       }
     });
 
@@ -119,51 +123,43 @@
       if (otp.length !== 6) { showAlert('Please enter all 6 digits', 'error'); return; }
 
       const btn = document.getElementById('verifyBtn');
-      btn.disabled = true; btn.textContent = 'Verifying…';
+      setLoading(btn, true);
 
       try {
         const res  = await fetch('/api/auth/verify-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: pendingEmail, otp })
         });
         const data = await res.json();
-
         if (!res.ok) {
           showAlert(data.error || 'Verification failed', 'error');
-          shakeBoxes();
+          shakeBoxes('error');
+          setLoading(btn, false, 'Verify Code');
         } else {
           clearInterval(timerInterval);
-          window.location.href = '/dashboard';
+          showOTPSuccess(() => window.location.href = '/dashboard');
         }
       } catch {
         showAlert('Connection error', 'error');
-      } finally {
-        btn.disabled = false; btn.textContent = 'Verify Code';
+        setLoading(btn, false, 'Verify Code');
       }
     }
 
     async function resendOTP() {
       const btn = document.getElementById('resendBtn');
-      btn.disabled = true; btn.textContent = 'Sending…';
+      setLoading(btn, true);
       try {
         const res  = await fetch('/api/auth/resend-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: pendingEmail, purpose: 'login' })
         });
         const data = await res.json();
-        if (res.ok) {
-          showAlert('New code sent!', 'success');
-          clearOTPBoxes();
-          startTimer(300);
-        } else {
-          showAlert(data.error || 'Failed to resend', 'error');
-        }
+        if (res.ok) { showAlert('New code sent!', 'success'); clearOTPBoxes(); startTimer(300); }
+        else        { showAlert(data.error || 'Failed to resend', 'error'); }
       } catch {
         showAlert('Connection error', 'error');
       } finally {
-        btn.disabled = false; btn.textContent = 'Resend Code';
+        setLoading(btn, false, 'Resend Code');
       }
     }
 
@@ -174,24 +170,40 @@
     }
 
     // ── OTP box helpers ───────────────────────────────────────
-    function focusFirstBox() {
-      document.querySelectorAll('.otp-box')[0]?.focus();
-    }
-
-    function getOTPValue() {
-      return [...document.querySelectorAll('.otp-box')].map(b => b.value).join('');
-    }
+    function focusFirstBox() { document.querySelectorAll('.otp-box')[0]?.focus(); }
+    function getOTPValue()   { return [...document.querySelectorAll('.otp-box')].map(b => b.value).join(''); }
 
     function clearOTPBoxes() {
-      document.querySelectorAll('.otp-box').forEach(b => { b.value = ''; b.classList.remove('otp-filled'); });
+      document.querySelectorAll('.otp-box').forEach(b => {
+        b.value = '';
+        b.className = 'otp-box';
+      });
     }
 
-    function shakeBoxes() {
+    function shakeBoxes(type) {
       const boxes = document.getElementById('otpBoxes');
+      if (type === 'error') document.querySelectorAll('.otp-box').forEach(b => b.classList.add('otp-error'));
       boxes.classList.add('shake');
-      clearOTPBoxes();
-      setTimeout(() => boxes.classList.remove('shake'), 600);
-      focusFirstBox();
+      setTimeout(() => {
+        boxes.classList.remove('shake');
+        clearOTPBoxes();
+        focusFirstBox();
+      }, 600);
+    }
+
+    function showOTPSuccess(cb) {
+      document.querySelectorAll('.otp-box').forEach(b => {
+        b.classList.remove('otp-filled', 'otp-error');
+        b.classList.add('otp-success');
+      });
+      const btn = document.getElementById('verifyBtn');
+      btn.classList.remove('btn-loading');
+      btn.style.background = 'linear-gradient(135deg,#059669,#10b981)';
+      btn.style.color = '';
+      btn.textContent = '✓ Verified!';
+      document.getElementById('pip2').classList.remove('active');
+      document.getElementById('pip2').classList.add('done');
+      setTimeout(cb, 900);
     }
 
     document.querySelectorAll('.otp-box').forEach((box, i, all) => {
@@ -202,7 +214,9 @@
         if (getOTPValue().length === 6) verifyOTP();
       });
       box.addEventListener('keydown', (e) => {
-        if (e.key === 'Backspace' && !box.value && i > 0) { all[i - 1].focus(); all[i - 1].value = ''; all[i - 1].classList.remove('otp-filled'); }
+        if (e.key === 'Backspace' && !box.value && i > 0) {
+          all[i - 1].focus(); all[i - 1].value = ''; all[i - 1].className = 'otp-box';
+        }
       });
       box.addEventListener('paste', (e) => {
         e.preventDefault();
@@ -219,23 +233,58 @@
       function tick() {
         if (seconds <= 0) {
           clearInterval(timerInterval);
-          el.innerHTML = '<span style="color:#ef4444">Code expired — click Resend</span>';
+          el.innerHTML = '<span style="color:var(--danger)">Code expired — click Resend</span>';
           return;
         }
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
+        const m = Math.floor(seconds / 60), s = seconds % 60;
         el.textContent = `Expires in ${m}:${String(s).padStart(2, '0')}`;
         seconds--;
       }
-      tick();
-      timerInterval = setInterval(tick, 1000);
+      tick(); timerInterval = setInterval(tick, 1000);
     }
 
-    // ── Step switcher ─────────────────────────────────────────
+    // ── Step switcher with animation ──────────────────────────
     function showStep(step) {
-      document.getElementById('stepCredentials').classList.toggle('hidden', step !== 'credentials');
-      document.getElementById('stepOTP').classList.toggle('hidden', step !== 'otp');
+      const fromEl = document.getElementById(step === 'otp' ? 'stepCredentials' : 'stepOTP');
+      const toEl   = document.getElementById(step === 'otp' ? 'stepOTP' : 'stepCredentials');
       document.getElementById('alert').classList.add('hidden');
+
+      fromEl.classList.add('step-leave');
+      setTimeout(() => {
+        fromEl.classList.add('hidden');
+        fromEl.classList.remove('step-leave');
+        toEl.classList.remove('hidden');
+        toEl.classList.add('step-enter');
+        toEl.addEventListener('animationend', () => toEl.classList.remove('step-enter'), { once: true });
+        updatePips(step);
+      }, 200);
+    }
+
+    function updatePips(step) {
+      const pip1 = document.getElementById('pip1');
+      const pip2 = document.getElementById('pip2');
+      const conn = document.getElementById('stepConn');
+      if (step === 'otp') {
+        pip1.classList.remove('active'); pip1.classList.add('done');
+        conn.classList.add('done');
+        pip2.classList.add('active');
+      } else {
+        pip1.classList.add('active'); pip1.classList.remove('done');
+        conn.classList.remove('done');
+        pip2.classList.remove('active');
+      }
+    }
+
+    // ── Button loading helper ─────────────────────────────────
+    function setLoading(btn, loading, text) {
+      if (loading) {
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+      } else {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        if (text) btn.textContent = text;
+      }
     }
   </script>
 </body>
